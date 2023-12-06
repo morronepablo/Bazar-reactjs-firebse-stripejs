@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from "react";
 import CartItem from "../components/CartItem";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { ToastContainer, toast } from "react-toastify";
+import StripeCheckout from "react-stripe-checkout";
+import axios from "axios";
+import { resetCart } from "../redux/bazarSlice";
 
 const Cart = () => {
+  const dispatch = useDispatch();
   const productData = useSelector((state) => state.bazar.productData);
+  const userInfo = useSelector((state) => state.bazar.userInfo);
   const [totalAmt, setTotalAmt] = useState("");
+  const [payNow, setPayNow] = useState(false);
 
   useEffect(() => {
     let price = 0;
@@ -14,6 +21,21 @@ const Cart = () => {
     });
     setTotalAmt(price.toFixed(2));
   }, [productData]);
+
+  const handleCheckout = () => {
+    if (userInfo) {
+      setPayNow(true);
+    } else {
+      toast.error("Please sign in to Checkout");
+    }
+  };
+
+  const payment = async (token) => {
+    await axios.post("http://localhost:8000/pay", {
+      amount: totalAmt * 100,
+      token: token,
+    });
+  };
 
   return (
     <div>
@@ -44,11 +66,42 @@ const Cart = () => {
           <p className="font-titleFont font-semibold flex justify-between mt-6">
             Total <span className="text-xl font-bold">$ {totalAmt}</span>
           </p>
-          <button className="text-base bg-black text-white w-full py-3 mt-6 hover:bg-gray-800 duration-300">
+          <button
+            onClick={handleCheckout}
+            className="text-base bg-black text-white w-full py-3 mt-6 hover:bg-gray-800 duration-300"
+          >
             proceed to checkout
           </button>
+          {payNow && (
+            <div
+              onClick={() => dispatch(resetCart())}
+              className="w-full mt-6 flex items-center justify-center"
+            >
+              <StripeCheckout
+                stripeKey="pk_test_51IwCe3L6LVvPXi7rdCP01KHQ8mJ9CICn5SGreziNrstr1qlRtw3vRjupgueNw6uiG7GmSfGuH38bVDjCg5VHw4Hj00YHwqljQJ"
+                name="Bazar Online Shopping"
+                amount={totalAmt * 100}
+                label="Pay to bazar"
+                description={`Your Payment amount is $${totalAmt}`}
+                token={payment}
+                email={userInfo.email}
+              />
+            </div>
+          )}
         </div>
       </div>
+      <ToastContainer
+        position="top-left"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
     </div>
   );
 };
